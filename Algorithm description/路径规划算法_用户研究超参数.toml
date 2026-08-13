@@ -1,0 +1,141 @@
+# 路径规划算法：用户研究超参数
+#
+# 本文件只保存由研究者直接确定的实验超参数和已确认的核心调度规则。
+# 修改本文件会改变研究问题、约束尺度或目标函数，应随论文实验一起归档。
+# 工程预算、搜索停止条件、重试次数、日志和图片参数位于：
+# 路径规划算法_工程运行参数.toml
+
+[research_config]
+# 参数片段版本。启动程序应与工程参数文件的兼容版本一起校验。
+schema_version = "1.0"
+
+# 文件角色，用于阻止把两个参数文件读反。
+role = "research_hyperparameters"
+
+# 人工输入角度使用度；程序在配置合并后只转换一次为弧度。
+angle_unit = "degree"
+
+# 长度参数以栅格边长为单位。
+length_unit = "grid_cell"
+
+# 面积参数以栅格面积为单位。
+area_unit = "grid_cell_squared"
+
+
+[objective]
+# L、D、A、R 使用原始量纲，不进行归一化。
+normalize_components = false
+
+# alpha1：路径长度 L 的权重；增大后更倾向于缩短路径。
+alpha1 = 1.0
+
+# alpha2：障碍软代价 D 的权重；增大后更倾向于远离障碍渐变区域。
+alpha2 = 1.0
+
+# alpha3：道路重叠面积 A 的权重；增大后更积极分离重叠路径。
+alpha3 = 1.0
+
+# alpha4：非重叠近距离排斥 R 的权重；增大后路径间距通常变大。
+alpha4 = 1.0
+
+
+[spatial_costs]
+# beta1：障碍物向自由空间扩展的有效渐变层数，必须为正整数。
+beta1 = 3
+
+# beta2：路径中心线排斥作用半径，单位为栅格。
+beta2 = 3.0
+
+# beta3：道路完整宽度；道路掩码半径固定为 beta3/2。
+beta3 = 5.0
+
+
+[turning_and_spacing]
+# beta_theta：最大单次真实转角，人工输入单位为度。
+beta_theta_deg = 10.0
+
+# beta10 不人工填写；程序计算 ceil(1/radians(beta_theta_deg))，当前派生值为 6。
+derive_beta10_from_beta_theta = true
+
+# beta11 不人工填写；程序固定令 beta11=beta10，当前派生值为 6。
+derive_beta11_from_beta10 = true
+
+# beta12：相邻控制点最大欧氏距离，超过时使用共线补点。
+beta12 = 30.0
+
+# beta13：控制折线相对原稠密路径的最大允许几何误差。
+beta13 = 2.0
+
+# beta14：运动基元最大物理长度；必须满足 beta10 < beta14 < beta12。
+beta14 = 15.0
+
+
+[map]
+# eta1：正方形地图边长；1000 表示 1000×1000 个栅格。
+eta1 = 1000
+
+# eta2：原始障碍物占地图面积的比例；0.10 直接表示 10%，不得再除以 100。
+eta2 = 0.10
+
+# eta3：单个原始障碍物的最小栅格面积。
+eta3 = 500
+
+# eta4：单个原始障碍物的最大栅格面积。
+eta4 = 3000
+
+# eta5：障碍物最大半径与最小半径之比上限；越接近 1 越接近圆形。
+eta5 = 1.5
+
+
+[od]
+# eta6：一次实验需要接受并联合优化的 OD 对数量。
+eta6 = 10
+
+
+[candidates]
+# eta7：每个 OD 最多保留的稠密候选总数，包含第 1 条基准路径。
+eta7 = 10
+
+
+[runtime]
+# eta10：CPU 并行工作数量；用于 OD 验证和按 OD 候选生成。
+eta10 = 6
+
+
+[control_point_search]
+# beta4：单控制点相对候选方格的轴向半宽；3 对应 7×7、最多 49 个名义位置。
+beta4 = 3
+
+# beta6：Effect Score 沿路径的传播范围，单位为沿路径距离。
+beta6 = 25.0
+
+# 局部视野固定包含前二点、当前点、后二点，边界处截断。
+local_window_radius = 2
+
+# 局部第一个实际调整点的临时转角上限为 2×beta_theta。
+first_point_turn_relaxation_multiplier = 2.0
+
+# 同一条路径同一时刻最多存在一个使用 2×beta_theta 的活动事务。
+max_active_relaxed_transactions_per_path = 1
+
+# 奇数轮完全按照 Effect Score 调度。
+strict_effect_round_parity = "odd"
+
+# 偶数轮允许执行 10% 随机选择。
+randomized_round_parity = "even"
+
+# 偶数轮每次普通选择进入均匀随机分支的概率。
+random_selection_probability = 0.10
+
+# 普通控制点最高优先级相同时，从同优先点中均匀随机选择。
+equal_priority_tie_break = "uniform_random"
+
+# 五点最高优先块内部严格按路径先后顺序执行，不按 Effect Score 重排。
+priority_block_internal_order = "path_sequence"
+
+
+[legacy.elite_pool]
+# 用户已确认当前主流程不使用旧版 Elite Pool。
+enabled = false
+
+# beta7、beta8、beta9 均为 N/A，因此本文件不提供伪造数值。
