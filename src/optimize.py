@@ -28,6 +28,79 @@ def _make_control_polyline(cp: ControlPath) -> List[PointF]:
     return [(p.x, p.y) for p in cp.points]
 
 
+def _is_true_turn(
+    i: int,
+    poly: List[PointF],
+    pt_idx: int,
+    new_pos: Optional[PointF],
+    eps: float,
+) -> bool:
+    """True if point i is a true turn, with point pt_idx replaced by new_pos.
+
+    Mirrors the turn detection used by Stage 10 validation (angle > eps).
+    Passing pt_idx < 0 leaves the polyline unchanged.
+    """
+    n = len(poly)
+    if i <= 0 or i >= n - 1:
+        return False
+    ax, ay = poly[i - 1]
+    bx, by = poly[i]
+    cx, cy = poly[i + 1]
+    if new_pos is not None:
+        if pt_idx == i - 1:
+            ax, ay = new_pos
+        elif pt_idx == i:
+            bx, by = new_pos
+        elif pt_idx == i + 1:
+            cx, cy = new_pos
+    v1 = (bx - ax, by - ay)
+    v2 = (cx - bx, cy - by)
+    if abs(v1[0]) < eps and abs(v1[1]) < eps:
+        return False
+    if abs(v2[0]) < eps and abs(v2[1]) < eps:
+        return False
+    t1 = math.atan2(v1[1], v1[0])
+    t2 = math.atan2(v2[1], v2[0])
+    return angle_diff(t1, t2) > eps
+
+
+def _respects_beta10_interval(
+    pt_idx: int,
+    new_pos: PointF,
+    poly: List[PointF],
+    turn_flags: List[bool],
+    seglen: List[float],
+    pref: List[float],
+    eps: float,
+    beta10: float,
+) -> bool:
+    """Check a candidate move keeps consecutive true turns >= beta10 apart.
+
+    Only the local five-point window's turn status can change, so turn flags are
+    recomputed there; arcs between consecutive turns are recomputed for every
+    pair, adjusting for the two segments that contain the moved point.
+    """
+    n = len(poly)
+    if n < 3:
+        return True
+    lo = max(1, pt_idx - 2)
+    hi = min(n - 2, pt_idx + 2)
+    flags = list(turn_flags)
+    for i in range(lo, hi + 1):
+        flags[i] = _is_true_turn(i, poly, pt_idx, new_pos, eps)
+
+    turns = [i for i in range(n) if flags[i]]
+    for a, b in zip(turns, turns[1:]):
+        arc = pref[b] - pref[a]
+        if pt_idx - 1 >= 0 and a <= pt_idx - 1 < b:
+            arc += euclidean_distance_f(poly[pt_idx - 1], new_pos) - seglen[pt_idx - 1]
+        if pt_idx + 1 < n and a <= pt_idx < b:
+            arc += euclidean_distance_f(new_pos, poly[pt_idx + 1]) - seglen[pt_idx]
+        if arc < beta10 - eps:
+            return False
+    return True
+
+
 def _compute_path_metrics(
     control_paths: List[ControlPath],
     grid_map: GridMap,
@@ -182,8 +255,8 @@ def _generate_candidate_positions(
                 if euclidean_distance_f((nx, ny), next_pt) > beta12 + epsilon:
                     continue
 
-            # 6. beta10 turning interval (check surrounding angles)
-            # This is deferred to turn-specific filtering below
+            # 6. beta10 turning interval: enforced in _filter_by_turn_constraint
+            #    (base-illegal, never relaxed), not here.
 
             candidates.append((nx, ny))
 
@@ -200,6 +273,8 @@ def _filter_by_turn_constraint(
     strict: bool = True,
     first_point_relaxed: bool = False,
     first_point_multiplier: float = 2.0,
+    beta10: Optional[float] = None,
+    turn_epsilon: float = 1e-6,
 ) -> List[Tuple[float, float]]:
     """Filter candidates by turn angle constraints.
 
@@ -213,6 +288,9 @@ def _filter_by_turn_constraint(
         strict: If True, only allow candidates within beta_theta
         first_point_relaxed: If True, allow up to 2*beta_theta for first point
         first_point_multiplier: Relaxation multiplier
+        beta10: Min true-turn interval; enforced as a base-illegal constraint
+            (never relaxed, per spec section 8 filter #6)
+        turn_epsilon: True-turn detection angle epsilon
 
     Returns:
         Filtered candidate list
@@ -222,6 +300,15 @@ def _filter_by_turn_constraint(
     pt_idx = point.sequence_index
     max_turn = beta_theta * (first_point_multiplier if first_point_relaxed else 1.0)
     epsilon = 1e-6
+
+    # Precompute current polyline turn flags and arc-length prefix sums for the
+    # beta10 true-turn interval check.
+    n = len(poly)
+    seglen = [euclidean_distance_f(poly[k], poly[k + 1]) for k in range(n - 1)]
+    pref = [0.0] * n
+    for k in range(1, n):
+        pref[k] = pref[k - 1] + seglen[k - 1]
+    turn_flags = [_is_true_turn(i, poly, -1, None, turn_epsilon) for i in range(n)]
 
     valid = []
     for nx, ny in candidates:
@@ -276,6 +363,15 @@ def _filter_by_turn_constraint(
                 t2 = np.arctan2(v2[1], v2[0])
                 if angle_diff(t1, t2) > max_turn + epsilon:
                     ok = False
+
+        # beta10 true-turn interval is base-illegal and never relaxed with
+        # the turn-angle relaxation (spec section 8 filter #6).
+        if ok and beta10 is not None:
+            if not _respects_beta10_interval(
+                pt_idx, (nx, ny), poly, turn_flags, seglen, pref,
+                turn_epsilon, beta10,
+            ):
+                ok = False
 
         if ok:
             valid.append((nx, ny))
@@ -578,6 +674,8 @@ def run_stage9(
                 strict=True,
                 first_point_relaxed=is_first,
                 first_point_multiplier=config.first_point_turn_multiplier,
+                beta10=config.beta10,
+                turn_epsilon=config.turn_detection_epsilon,
             )
 
             if not filtered:
@@ -588,6 +686,8 @@ def run_stage9(
                     strict=False,
                     first_point_relaxed=True,
                     first_point_multiplier=config.first_point_turn_multiplier + 0.5,
+                    beta10=config.beta10,
+                    turn_epsilon=config.turn_detection_epsilon,
                 )
 
             if not filtered:

@@ -43,6 +43,60 @@ def _compute_max_error(
     return max_err
 
 
+def _removal_respects_beta10(
+    control_points: List[ControlPoint],
+    idx: int,
+    beta10: float,
+    turn_eps: float,
+) -> bool:
+    """Check that removing control point idx keeps affected true-turn intervals >= beta10.
+
+    Replacing A-B-C with A-C only changes the segment between the two neighbors
+    (index idx-1 of the resulting polyline) and the turn status near the seam,
+    so only consecutive-turn arcs containing that segment can shrink. True-turn
+    detection mirrors Stage 10 validation.
+    """
+    n = len(control_points)
+    if n < 4:
+        return True
+    poly = [(p.x, p.y) for p in control_points]
+    new_poly = poly[:idx] + poly[idx + 1:]
+    a_idx = idx - 1  # index of the new A-C segment
+    m = len(new_poly)
+
+    turns = []
+    for i in range(1, m - 1):
+        ax, ay = new_poly[i - 1]
+        bx, by = new_poly[i]
+        cx, cy = new_poly[i + 1]
+        v1 = (bx - ax, by - ay)
+        v2 = (cx - bx, cy - by)
+        if abs(v1[0]) < turn_eps and abs(v1[1]) < turn_eps:
+            continue
+        if abs(v2[0]) < turn_eps and abs(v2[1]) < turn_eps:
+            continue
+        t1 = np.arctan2(v1[1], v1[0])
+        t2 = np.arctan2(v2[1], v2[0])
+        if angle_diff(t1, t2) > turn_eps:
+            turns.append(i)
+
+    if len(turns) < 2:
+        return True
+
+    seglen = [euclidean_distance_f(new_poly[k], new_poly[k + 1]) for k in range(m - 1)]
+    pref = [0.0] * m
+    for k in range(1, m):
+        pref[k] = pref[k - 1] + seglen[k - 1]
+
+    for a, b in zip(turns, turns[1:]):
+        if not (a <= a_idx < b):
+            continue
+        arc = pref[b] - pref[a]
+        if arc < beta10 - turn_eps:
+            return False
+    return True
+
+
 def _safe_to_remove(
     dense_points: List[Point],
     control_points: List[ControlPoint],
@@ -52,6 +106,7 @@ def _safe_to_remove(
     beta_theta: float,
     beta10: float,
     beta13: float,
+    turn_eps: float = 1e-6,
 ) -> bool:
     """Check if control point at idx can be safely removed.
 
@@ -117,10 +172,8 @@ def _safe_to_remove(
         if angle_diff(t1, t2) > beta_theta + 1e-6:
             return False
 
-    # Check turning interval (beta10)
-    # After removal, the distance from A to C along the path must be >= beta10
-    dist_ac = euclidean_distance_f(a, c)
-    if dist_ac < beta10 - 1e-6:
+    # Check turning interval (beta10): affected true-turn spacing must stay >= beta10
+    if not _removal_respects_beta10(control_points, idx, beta10, turn_eps):
         return False
 
     return True
@@ -137,6 +190,7 @@ def _sparsify_path(
     beta13: float,
     od_id: int,
     candidate_id: int,
+    turn_eps: float = 1e-6,
 ) -> Tuple[ControlPath, dict]:
     """Convert a dense path to a sparse control path.
 
@@ -208,7 +262,7 @@ def _sparsify_path(
         i = 1
         while i < len(control_points) - 1:
             if _safe_to_remove(dense_points, control_points, i, hard_mask, map_size,
-                               beta_theta, beta10, beta13):
+                               beta_theta, beta10, beta13, turn_eps):
                 control_points.pop(i)
                 deleted_count += 1
                 changed = True
@@ -351,7 +405,7 @@ def run_stage8(
             dense_path, hard_mask, map_size,
             config.beta_theta_rad, config.beta10, config.beta11,
             config.beta12, config.beta13,
-            od_idx, 0,
+            od_idx, 0, turn_eps=config.turn_detection_epsilon,
         )
         control_paths.append(cp)
         per_path_reports.append(report)

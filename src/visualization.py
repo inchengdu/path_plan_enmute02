@@ -124,10 +124,10 @@ def save_network_figure(
                     if highlight_turns:
                         poly = [(p.x, p.y) for p in cp.points]
                         for i in range(1, len(poly) - 1):
-                            ax, ay = poly[i - 1]
+                            xa, ya = poly[i - 1]
                             bx, by = poly[i]
                             cx, cy = poly[i + 1]
-                            v1 = (bx - ax, by - ay)
+                            v1 = (bx - xa, by - ya)
                             v2 = (cx - bx, cy - by)
                             if abs(v1[0]) > 1e-6 or abs(v1[1]) > 1e-6:
                                 if abs(v2[0]) > 1e-6 or abs(v2[1]) > 1e-6:
@@ -172,10 +172,11 @@ def save_network_figure(
 
         plt.tight_layout()
 
-        # Save to temp file first, then replace
+        # Save to temp file first, then replace. Pass format explicitly so
+        # matplotlib doesn't infer it from the .tmp extension.
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         temp_path = save_path + ".tmp"
-        plt.savefig(temp_path, dpi=dpi, bbox_inches='tight')
+        plt.savefig(temp_path, dpi=dpi, bbox_inches='tight', format='png')
         os.replace(temp_path, save_path)
         plt.close(fig)
 
