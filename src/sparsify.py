@@ -94,7 +94,7 @@ def _safe_to_remove(
 
     # Check geometric error
     err = _compute_max_error(segment_points, a, c)
-    if err > beta_13:
+    if err > beta13:
         return False
 
     # Check turning angles at surrounding points

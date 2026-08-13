@@ -112,12 +112,23 @@ def check_segment_collision(p1: Point, p2: Point, hard_mask: np.ndarray, map_siz
     return check_collision(cover, hard_mask, map_size)
 
 
+# Module-level cache for flattened grid coordinates (x_flat, y_flat).
+# generate_road_mask is called thousands of times (Stages 6/9/10) with the same
+# map_size; caching avoids re-allocating two 1M-element arrays on every call.
+_grid_flat_cache: dict = {}
+
+
+def _grid_flat_coords(map_size: int):
+    if map_size not in _grid_flat_cache:
+        y_coords, x_coords = np.meshgrid(np.arange(map_size), np.arange(map_size), indexing='ij')
+        _grid_flat_cache[map_size] = (x_coords.ravel(), y_coords.ravel())
+    return _grid_flat_cache[map_size]
+
+
 def generate_road_mask(points: List[PointF], road_radius: float, map_size: int) -> np.ndarray:
     """Generate binary road mask for a polyline with given road radius."""
     mask = np.zeros(map_size * map_size, dtype=bool)
-    y_coords, x_coords = np.meshgrid(np.arange(map_size), np.arange(map_size), indexing='ij')
-    x_flat = x_coords.ravel()
-    y_flat = y_coords.ravel()
+    x_flat, y_flat = _grid_flat_coords(map_size)
     # For each segment, compute distance and mark
     for i in range(len(points) - 1):
         ax, ay = points[i]

@@ -372,7 +372,9 @@ def _compute_local_delta(
         seg_mask = generate_road_mask([seg[0], seg[1]], road_radius, map_size)
         new_mask_contrib |= seg_mask
 
-    # Compute overlap with other paths
+    # Compute overlap with other paths. Overlap A only counts cells shared by
+    # DIFFERENT paths (choose(n(c), 2) is zero for n(c)==1), so this path's own
+    # road area must NOT be added as "self-overlap".
     old_A_local = 0.0
     new_A_local = 0.0
     for other_idx, other_mask in enumerate(road_masks):
@@ -380,14 +382,6 @@ def _compute_local_delta(
             continue
         old_A_local += float(np.sum(old_mask_contrib & other_mask))
         new_A_local += float(np.sum(new_mask_contrib & other_mask))
-
-    # Also compute self-overlap change
-    old_self = float(np.sum(old_mask_contrib & road_masks[path_idx]))
-    new_self = float(np.sum(new_mask_contrib & road_masks[path_idx]))
-    # But we need to be careful: the old mask contributed to the old overlap
-    # The new mask will contribute to the new overlap
-    old_A_local += old_self
-    new_A_local += new_self
 
     delta_A = new_A_local - old_A_local
 
@@ -440,12 +434,8 @@ def _apply_move(
     road_masks[path_idx] = road_masks[path_idx] & ~old_contrib
     road_masks[path_idx] = road_masks[path_idx] | new_contrib
 
-    # Update occupancy
-    for i in range(map_size * map_size):
-        if old_contrib[i] and not new_contrib[i]:
-            occ[i] -= 1
-        elif new_contrib[i] and not old_contrib[i]:
-            occ[i] += 1
+    # Update occupancy count vectorized (this is the hot path in Stage 9)
+    occ += new_contrib.astype(np.int32) - old_contrib.astype(np.int32)
 
     # Update control point position
     cp.points[point_idx].x = new_pos[0]
@@ -508,6 +498,10 @@ def run_stage9(
     objective_trace = [J]
     adjustment_trace = []
     selection_trace = []
+    # Initialize to avoid UnboundLocalError when the search breaks before the
+    # first full round (e.g. no movable points).
+    conflict_components: List[dict] = []
+    stop_reason = "max_rounds"
 
     for round_idx in range(K):
         round_rng = random_streams.get_control_rng(round_idx)
@@ -528,6 +522,7 @@ def run_stage9(
 
         if not unvisited:
             print(f"[Stage 9]  No movable points, stopping")
+            stop_reason = "no_movable_points"
             break
 
         # Compute conflict components
