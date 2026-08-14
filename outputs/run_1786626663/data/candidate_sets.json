@@ -1,0 +1,27 @@
+{
+  "n_ods": 10,
+  "candidate_counts": [
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10
+  ],
+  "stop_reasons": [
+    "max_candidates",
+    "max_candidates",
+    "max_candidates",
+    "max_candidates",
+    "max_candidates",
+    "max_candidates",
+    "max_candidates",
+    "max_candidates",
+    "max_candidates",
+    "max_candidates"
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "status": "SUCCESS",
+  "metrics": {
+    "L": 7607.251853273045,
+    "D": 61.64999973773956,
+    "A": 449.0,
+    "R": 0.0,
+    "J_true": 8117.901853010784
+  },
+  "validation": {
+    "path_validation": {
+      "total_paths": 10,
+      "passed": 10,
+      "failed": 0,
+      "checks": [
+        {
+          "path_id": 0,
+          "od_id": 0,
+          "n_points": 42,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 1,
+          "od_id": 1,
+          "n_points": 33,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 2,
+          "od_id": 2,
+          "n_points": 38,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 3,
+          "od_id": 3,
+          "n_points": 30,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 4,
+          "od_id": 4,
+          "n_points": 37,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 5,
+          "od_id": 5,
+          "n_points": 27,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 6,
+          "od_id": 6,
+          "n_points": 40,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 7,
+          "od_id": 7,
+          "n_points": 28,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 8,
+          "od_id": 8,
+          "n_points": 37,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 9,
+          "od_id": 9,
+          "n_points": 20,
+          "errors": [],
+          "passed": true
+        }
+      ]
+    },
+    "overlap_consistency": {
+      "A_pair": 449.0,
+      "A_count": 449.0,
+      "difference": 0.0,
+      "consistent": true
+    },
+    "all_checks_passed": true,
+    "n_ods": 10,
+    "n_control_points": 332
+  },
+  "n_paths": 10,
+  "n_conflict_components": 18
+}

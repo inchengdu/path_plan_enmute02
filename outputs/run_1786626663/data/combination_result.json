@@ -1,0 +1,18 @@
+{
+  "selected_indices": [
+    7,
+    3,
+    7,
+    0,
+    9,
+    0,
+    0,
+    8,
+    4,
+    0
+  ],
+  "initial_objective": 11114.496666883733,
+  "best_objective": 8501.405411457526,
+  "iterations": 510,
+  "stop_reason": "stall"
+}

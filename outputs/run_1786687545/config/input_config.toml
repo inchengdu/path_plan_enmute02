@@ -58,7 +58,7 @@ checkpoint_after_each_stage = true
 
 [random]
 # 唯一工程随机根种子；更改后会改变地图、OD、候选和随机调度轨迹。
-root_seed = 20260812
+root_seed = 1025
 
 # 使用稳定 BLAKE2b-64 从根种子、模块名、OD、尝试号或轮次派生子种子。
 seed_derivation = "blake2b_64"
@@ -268,10 +268,10 @@ obstacle_boundary_margin = 1.0
 placement_sampling = "uniform_integer_shape_center"
 
 # 单个障碍最多尝试生成 80 次形状。
-max_shape_trials_per_obstacle = 80
+max_shape_trials_per_obstacle = 50
 
 # 一个已生成形状最多尝试 300 个位置。
-max_placement_trials_per_obstacle = 300
+max_placement_trials_per_obstacle = 100
 
 # 位置预算耗尽时重新生成当前障碍形状。
 placement_failure_action = "regenerate_current_obstacle"
@@ -356,7 +356,7 @@ proposal_batch_size_policy = "runtime_eta10"
 acceptance_order = "proposal_index"
 
 # 最多执行 30 批 OD 提案；当前 eta10=6 时最多验证 180 个提案。
-max_od_batches = 30
+max_od_batches = 10
 
 # 达到批次预算仍不足 eta6 时停止当前运行，不自动更换地图或种子。
 budget_exhaustion_policy = "fail_current_run"
@@ -587,7 +587,7 @@ apply_breakout_to = "search_overlap_term_only"
 
 [optimization]
 # K：连续控制点优化最多 30 轮，包含 15 个严格轮和 15 个随机轮。
-K = 30
+K = 60
 
 # 连续 5 个合法轮末无有效改善时提前停止。
 stall_rounds = 5

@@ -33,7 +33,7 @@ alpha1 = 1.0
 alpha2 = 1.0
 
 # alpha3：道路重叠面积 A 的权重；增大后更积极分离重叠路径。
-alpha3 = 1.0
+alpha3 = 3.0
 
 # alpha4：非重叠近距离排斥 R 的权重；增大后路径间距通常变大。
 alpha4 = 1.0
@@ -81,7 +81,7 @@ eta2 = 0.10
 eta3 = 500
 
 # eta4：单个原始障碍物的最大栅格面积。
-eta4 = 3000
+eta4 = 2000
 
 # eta5：障碍物最大半径与最小半径之比上限；越接近 1 越接近圆形。
 eta5 = 1.5
@@ -89,7 +89,7 @@ eta5 = 1.5
 
 [od]
 # eta6：一次实验需要接受并联合优化的 OD 对数量。
-eta6 = 10
+eta6 = 12
 
 
 [candidates]
@@ -104,7 +104,7 @@ eta10 = 6
 
 [control_point_search]
 # beta4：单控制点相对候选方格的轴向半宽；3 对应 7×7、最多 49 个名义位置。
-beta4 = 3
+beta4 = 5
 
 # beta6：Effect Score 沿路径的传播范围，单位为沿路径距离。
 beta6 = 25.0
@@ -125,7 +125,7 @@ strict_effect_round_parity = "odd"
 randomized_round_parity = "even"
 
 # 偶数轮每次普通选择进入均匀随机分支的概率。
-random_selection_probability = 0.10
+random_selection_probability = 0.20
 
 # 普通控制点最高优先级相同时，从同优先点中均匀随机选择。
 equal_priority_tie_break = "uniform_random"

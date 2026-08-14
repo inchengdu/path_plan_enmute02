@@ -5,6 +5,7 @@ Local search on control point positions using Effect Score scheduling,
 Reactive Tabu, Adaptive Threshold, and five-point local windows.
 """
 from __future__ import annotations
+import collections
 import copy
 import math
 import time
@@ -538,6 +539,160 @@ def _apply_move(
     cp.points[point_idx].y = new_pos[1]
 
 
+ScoredCandidate = Tuple[Tuple[float, float], float]
+
+
+def _position_key(
+    pos: Tuple[float, float],
+    resolution: float,
+) -> Tuple[int, int]:
+    """Quantize a control point position to the candidate-resolution grid."""
+    return (int(round(pos[0] / resolution)), int(round(pos[1] / resolution)))
+
+
+def _init_point_search_state(point_id: int, config: NormalizedConfig) -> dict:
+    """Persistent per-point Reactive Tabu / Adaptive Threshold state."""
+    return {
+        "point_id": point_id,
+        "tabu_positions": {},  # quantized position key -> remaining tenure
+        "recent_positions": collections.deque(
+            maxlen=config.control_tabu_cycle_detection_window),
+        "current_tenure": config.control_tabu_tenure_initial,
+        "visits_since_cycle": 0,
+        "threshold_ratio": config.adaptive_threshold_initial,
+        "stagnant_visits": 0,
+        "moves_made": 0,
+    }
+
+
+def _is_position_tabu(
+    pos: Tuple[float, float],
+    state: dict,
+    config: NormalizedConfig,
+) -> bool:
+    """True if the quantized position key is currently tabooed for this point."""
+    key = _position_key(pos, config.candidate_resolution)
+    return state["tabu_positions"].get(key, 0) > 0
+
+
+def _record_move(
+    state: dict,
+    old_pos: Tuple[float, float],
+    new_pos: Tuple[float, float],
+    config: NormalizedConfig,
+) -> None:
+    """Update Reactive Tabu state after an accepted move.
+
+    Taboos the reverse move (old position) and adapts tenure when the point
+    cycles back onto a recently visited position (spec section 9).
+    """
+    new_key = _position_key(new_pos, config.candidate_resolution)
+
+    # Cycle detection over the recent-position window.
+    if new_key in state["recent_positions"]:
+        state["current_tenure"] = min(
+            config.control_tabu_tenure_max,
+            state["current_tenure"] + config.control_tabu_tenure_increase_on_cycle,
+        )
+        state["visits_since_cycle"] = 0
+    else:
+        state["visits_since_cycle"] += 1
+        if (state["visits_since_cycle"]
+                >= config.control_tabu_visits_without_cycle_before_decrease
+                and state["current_tenure"] > config.control_tabu_tenure_min):
+            state["current_tenure"] -= config.control_tabu_tenure_decrease_without_cycle
+            state["visits_since_cycle"] = 0
+
+    state["recent_positions"].append(new_key)
+    state["moves_made"] += 1
+
+    # Taboo the reverse move with the current tenure.
+    old_key = _position_key(old_pos, config.candidate_resolution)
+    if old_key != new_key:
+        state["tabu_positions"][old_key] = state["current_tenure"]
+
+    # Decay all tabu tenures by one timestep.
+    for k in list(state["tabu_positions"]):
+        state["tabu_positions"][k] -= 1
+        if state["tabu_positions"][k] <= 0:
+            del state["tabu_positions"][k]
+
+
+def _grow_threshold(state: dict, config: NormalizedConfig) -> None:
+    """Lower the acceptance bar after a visit that produced no improvement."""
+    state["stagnant_visits"] += 1
+    state["threshold_ratio"] = min(
+        config.adaptive_threshold_max,
+        state["threshold_ratio"] + config.adaptive_threshold_growth,
+    )
+
+
+def _accept_improvement(state: dict, config: NormalizedConfig) -> None:
+    """An improving move was accepted: decay the adaptive threshold."""
+    state["threshold_ratio"] = max(
+        0.0, state["threshold_ratio"] * config.adaptive_threshold_decay,
+    )
+    state["stagnant_visits"] = 0
+
+
+def _choose_move(
+    scored: List[ScoredCandidate],
+    state: dict,
+    config: NormalizedConfig,
+    reference_scale: float,
+) -> Tuple[Optional[Tuple[float, float]], str]:
+    """Reactive Tabu + Adaptive Threshold candidate selection (spec section 9).
+
+    Within the preserved constraint rank:
+      1. improving (delta < 0) Tabu-free candidates win;
+      2. lacking those, a Tabu candidate is aspirated only when it strictly
+         improves the current objective (proxy for strict legal global-best
+         improvement, per `control_tabu_aspiration`);
+      3. otherwise only candidates worsening within the per-point adaptive
+         threshold are allowed;
+      4. nothing within threshold -> the point stays in place and the
+         threshold grows for the next visit.
+
+    Returns (chosen position or None when staying, decision reason).
+    """
+    free: List[ScoredCandidate] = []
+    tabu_c: List[ScoredCandidate] = []
+    best_free_delta = float("inf")
+    for s in scored:
+        if _is_position_tabu(s[0], state, config):
+            tabu_c.append(s)
+        else:
+            free.append(s)
+            best_free_delta = min(best_free_delta, s[1])
+
+    threshold_abs = state["threshold_ratio"] * reference_scale
+
+    improving = [s for s in free if s[1] < 0]
+    if improving:
+        chosen = min(improving, key=lambda s: s[1])
+        _accept_improvement(state, config)
+        return chosen[0], "improved"
+
+    # Aspiration: strictly-improving Tabu candidates that beat every free one.
+    aspirants = [
+        s for s in tabu_c
+        if s[1] < 0 and (not free or s[1] < best_free_delta)
+    ]
+    if aspirants:
+        chosen = min(aspirants, key=lambda s: s[1])
+        _accept_improvement(state, config)
+        return chosen[0], "tabu_aspiration"
+
+    allowed = [s for s in free if s[1] <= threshold_abs]
+    if allowed:
+        chosen = min(allowed, key=lambda s: s[1])
+        _grow_threshold(state, config)
+        return chosen[0], "moved_within_threshold"
+
+    _grow_threshold(state, config)
+    return None, "threshold_block"
+
+
 def run_stage9(
     config: NormalizedConfig,
     sparse_paths: SparseControlPaths,
@@ -594,6 +749,12 @@ def run_stage9(
     objective_trace = [J]
     adjustment_trace = []
     selection_trace = []
+    # Per-point Reactive Tabu / Adaptive Threshold state, persistent across rounds.
+    point_states: Dict[int, dict] = {}
+    # Adaptive Threshold reference: the objective of the current round-start
+    # network (equal to the previous round-end network, or the initial network
+    # before the first round).
+    round_start_objective = J
     # Initialize to avoid UnboundLocalError when the search breaks before the
     # first full round (e.g. no movable points).
     conflict_components: List[dict] = []
@@ -652,6 +813,10 @@ def run_stage9(
             control_paths[x[0]].points[x[1]].point_id, 0.0
         ))
 
+        # Adaptive Threshold reference scale: round-start objective per movable
+        # point (config `reference_scale = round_start_objective_per_movable_point`).
+        reference_scale = round_start_objective / max(1, len(unvisited))
+
         # Process points in order
         moves_made = 0
         for cp_idx, pt_idx in unvisited:
@@ -678,8 +843,10 @@ def run_stage9(
                 turn_epsilon=config.turn_detection_epsilon,
             )
 
+            relaxed_path = False
             if not filtered:
-                # Try with relaxed turn constraint
+                # Try with relaxed turn constraint (emergency turn-repair path).
+                relaxed_path = True
                 filtered = _filter_by_turn_constraint(
                     candidates, point, control_paths, cp_idx,
                     config.beta_theta_rad, [],
@@ -691,49 +858,95 @@ def run_stage9(
                 )
 
             if not filtered:
+                selection_trace.append({
+                    "round": round_idx,
+                    "path": cp_idx,
+                    "point": pt_idx,
+                    "point_id": point.point_id,
+                    "new_pos": None,
+                    "moved": False,
+                    "reason": "no_candidate",
+                })
                 continue
 
-            # Random 10% selection for even rounds
-            if not is_strict and round_rng.uniform() < 0.10:
-                import random as _random
-                nx, ny = _random.choice(filtered)
+            point_state = point_states.setdefault(
+                point.point_id, _init_point_search_state(point.point_id, config))
+
+            # Score approved candidates with the local objective increment.
+            scored = []
+            a1, a2, a3, a4 = config.alpha1, config.alpha2, config.alpha3, config.alpha4
+            for nx, ny in filtered:
+                dL, dD, dA, dR = _compute_local_delta(
+                    cp_idx, pt_idx, (nx, ny),
+                    control_paths, grid_map, config,
+                    occ, road_masks,
+                )
+                scored.append(((nx, ny), a1 * dL + a2 * dD + a3 * dA + a4 * dR))
+
+            chosen = None
+            reason = "no_candidate"
+            if relaxed_path:
+                # Emergency turn-repair: keep the historical best-delta behavior;
+                # Reactive Tabu / Adaptive Threshold do not apply to repair moves.
+                chosen = min(scored, key=lambda s: s[1])[0]
+                reason = "relaxed_fallback"
+            elif not is_strict and round_rng.uniform() < 0.10:
+                # Even rounds: reproducible 10% random draw among Tabu-free
+                # candidates (spec section 6.2).
+                free = [s for s in scored
+                        if not _is_position_tabu(s[0], point_state, config)]
+                if not free:
+                    free = [s for s in scored if s[1] < 0]
+                if free:
+                    idx = int(round_rng.integers(0, len(free)))
+                    chosen = free[idx][0]
+                    reason = "random"
             else:
-                # Evaluate each candidate
-                best_candidate = None
-                best_delta = float('inf')
+                chosen, reason = _choose_move(scored, point_state, config, reference_scale)
 
-                for nx, ny in filtered:
-                    dL, dD, dA, dR = _compute_local_delta(
-                        cp_idx, pt_idx, (nx, ny),
-                        control_paths, grid_map, config,
-                        occ, road_masks
-                    )
-                    a1, a2, a3, a4 = config.alpha1, config.alpha2, config.alpha3, config.alpha4
-                    delta = a1 * dL + a2 * dD + a3 * dA + a4 * dR
+            # A "move" that lands on the current position is a no-op.
+            if chosen is not None and euclidean_distance_f(
+                chosen, (point.x, point.y),
+            ) <= config.numeric_epsilon:
+                chosen = None
+                reason = "unchanged"
 
-                    if delta < best_delta:
-                        best_delta = delta
-                        best_candidate = (nx, ny)
+            if chosen is None:
+                selection_trace.append({
+                    "round": round_idx,
+                    "path": cp_idx,
+                    "point": pt_idx,
+                    "point_id": point.point_id,
+                    "new_pos": None,
+                    "moved": False,
+                    "reason": reason,
+                })
+                continue
 
-                nx, ny = best_candidate
-
-            # Apply move
+            old_pos = (point.x, point.y)
             _apply_move(
-                cp_idx, pt_idx, (nx, ny),
-                control_paths, road_masks, occ, map_size, road_radius
+                cp_idx, pt_idx, chosen,
+                control_paths, road_masks, occ, map_size, road_radius,
             )
+            if not relaxed_path:
+                _record_move(point_state, old_pos, chosen, config)
+
             moves_made += 1
 
             selection_trace.append({
                 "round": round_idx,
                 "path": cp_idx,
                 "point": pt_idx,
-                "new_pos": (nx, ny),
+                "point_id": point.point_id,
+                "new_pos": chosen,
+                "moved": True,
+                "reason": reason,
             })
 
         # Round end: compute metrics
         L, D, A, R, J = _compute_path_metrics(control_paths, grid_map, config)
         objective_trace.append(J)
+        round_start_objective = J
 
         round_elapsed = time.time() - round_start
         print(f"[Stage 9]   Round {round_idx + 1}: J={J:.4f} ({moves_made} moves, "
@@ -769,7 +982,7 @@ def run_stage9(
         occupancy_count=best_occ,
         true_metrics={"L": final_L, "D": final_D, "A": final_A, "R": final_R, "J_true": final_J},
         conflict_components=conflict_components,
-        point_search_states={},
+        point_search_states=dict(point_states),
         adjustment_attempts=[],
         local_priority_blocks=[],
         round_index=K,

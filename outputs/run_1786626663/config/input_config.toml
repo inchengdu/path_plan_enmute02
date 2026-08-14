@@ -58,7 +58,7 @@ checkpoint_after_each_stage = true
 
 [random]
 # 唯一工程随机根种子；更改后会改变地图、OD、候选和随机调度轨迹。
-root_seed = 2048
+root_seed = 42
 
 # 使用稳定 BLAKE2b-64 从根种子、模块名、OD、尝试号或轮次派生子种子。
 seed_derivation = "blake2b_64"
@@ -587,7 +587,7 @@ apply_breakout_to = "search_overlap_term_only"
 
 [optimization]
 # K：连续控制点优化最多 30 轮，包含 15 个严格轮和 15 个随机轮。
-K = 60
+K = 30
 
 # 连续 5 个合法轮末无有效改善时提前停止。
 stall_rounds = 5

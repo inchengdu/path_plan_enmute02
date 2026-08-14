@@ -1,0 +1,105 @@
+{
+  "path_validation": {
+    "total_paths": 12,
+    "passed": 11,
+    "failed": 1,
+    "checks": [
+      {
+        "path_id": 0,
+        "od_id": 0,
+        "n_points": 43,
+        "errors": [
+          "Turn 24.94deg > beta_theta 10.00deg at point 7",
+          "Turn 19.00deg > beta_theta 10.00deg at point 8"
+        ],
+        "passed": false
+      },
+      {
+        "path_id": 1,
+        "od_id": 1,
+        "n_points": 39,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 2,
+        "od_id": 2,
+        "n_points": 32,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 3,
+        "od_id": 3,
+        "n_points": 31,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 4,
+        "od_id": 4,
+        "n_points": 50,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 5,
+        "od_id": 5,
+        "n_points": 26,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 6,
+        "od_id": 6,
+        "n_points": 40,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 7,
+        "od_id": 7,
+        "n_points": 36,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 8,
+        "od_id": 8,
+        "n_points": 39,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 9,
+        "od_id": 9,
+        "n_points": 36,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 10,
+        "od_id": 10,
+        "n_points": 36,
+        "errors": [],
+        "passed": true
+      },
+      {
+        "path_id": 11,
+        "od_id": 11,
+        "n_points": 37,
+        "errors": [],
+        "passed": true
+      }
+    ]
+  },
+  "overlap_consistency": {
+    "A_pair": 570.0,
+    "A_count": 570.0,
+    "difference": 0.0,
+    "consistent": true
+  },
+  "all_checks_passed": false,
+  "n_ods": 12,
+  "n_control_points": 445
+}

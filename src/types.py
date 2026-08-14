@@ -91,6 +91,16 @@ class NormalizedConfig:
     adaptive_threshold_growth: float = 0.005
     adaptive_threshold_max: float = 0.05
     adaptive_threshold_decay: float = 0.5
+    # Control-point Reactive Tabu (Stage 9)
+    control_tabu_tenure_initial: int = 5
+    control_tabu_tenure_min: int = 3
+    control_tabu_tenure_max: int = 12
+    control_tabu_cycle_detection_window: int = 8
+    control_tabu_tenure_increase_on_cycle: int = 1
+    control_tabu_visits_without_cycle_before_decrease: int = 10
+    control_tabu_tenure_decrease_without_cycle: int = 1
+    control_tabu_aspiration: str = "strict_legal_global_best_improvement"
+    control_tabu_failed_adjustment_creates_tabu: bool = False
     # Breakout
     gamma: float = 1.0
     age_saturation: int = 5

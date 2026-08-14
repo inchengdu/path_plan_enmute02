@@ -1,0 +1,75 @@
+{
+  "n_paths": 10,
+  "per_path": [
+    {
+      "od_id": 0,
+      "initial_points": 840,
+      "deleted": 55,
+      "spacing_inserts": 23,
+      "final_points": 42
+    },
+    {
+      "od_id": 1,
+      "initial_points": 654,
+      "deleted": 71,
+      "spacing_inserts": 25,
+      "final_points": 33
+    },
+    {
+      "od_id": 2,
+      "initial_points": 629,
+      "deleted": 48,
+      "spacing_inserts": 20,
+      "final_points": 38
+    },
+    {
+      "od_id": 3,
+      "initial_points": 677,
+      "deleted": 69,
+      "spacing_inserts": 27,
+      "final_points": 30
+    },
+    {
+      "od_id": 4,
+      "initial_points": 559,
+      "deleted": 37,
+      "spacing_inserts": 11,
+      "final_points": 37
+    },
+    {
+      "od_id": 5,
+      "initial_points": 704,
+      "deleted": 47,
+      "spacing_inserts": 21,
+      "final_points": 27
+    },
+    {
+      "od_id": 6,
+      "initial_points": 852,
+      "deleted": 75,
+      "spacing_inserts": 26,
+      "final_points": 40
+    },
+    {
+      "od_id": 7,
+      "initial_points": 622,
+      "deleted": 49,
+      "spacing_inserts": 15,
+      "final_points": 28
+    },
+    {
+      "od_id": 8,
+      "initial_points": 636,
+      "deleted": 47,
+      "spacing_inserts": 16,
+      "final_points": 37
+    },
+    {
+      "od_id": 9,
+      "initial_points": 514,
+      "deleted": 36,
+      "spacing_inserts": 15,
+      "final_points": 20
+    }
+  ]
+}
