@@ -1,0 +1,787 @@
+# 路径规划算法：工程运行参数
+#
+# 本文件保存为实现一键运行而补充的工程参数、搜索预算、停止条件、复现规则和输出设置。
+# 启动程序以本文件为入口，先读取 parameter_files.research_hyperparameters_file，
+# 再把两个 TOML 按表名和字段名进行深度合并。两个文件禁止定义同一个叶子字段。
+# 本文件中的初始值面向 1000×1000 地图、10 个 OD、6 路并行和数小时内的平衡预算。
+
+[engineering_config]
+# 工程参数片段版本。程序应检查它与研究超参数片段兼容。
+schema_version = "1.0"
+
+# 文件角色，用于阻止把两个参数文件读反。
+role = "engineering_runtime_parameters"
+
+# 相对路径从本工程参数文件所在目录解析。
+relative_path_base = "config_directory"
+
+
+[parameter_files]
+# 研究者直接设置的核心超参数文件；启动时必须存在。
+research_hyperparameters_file = "./路径规划算法_用户研究超参数.toml"
+
+# 两个文件按 TOML 表递归合并，例如两个文件中的 [candidates] 会合成为一个配置对象。
+merge_strategy = "deep_merge_tables"
+
+# 若两个文件定义同一叶子字段，立即报错，不能静默覆盖。
+duplicate_leaf_key_policy = "error"
+
+# 先读取研究超参数，再读取工程参数；该顺序只用于日志，不允许工程值覆盖重复研究值。
+load_order = ["research_hyperparameters", "engineering_runtime_parameters"]
+
+
+[launcher]
+# 每次实验结果保存根目录；其下创建独立 run_id 子目录。
+output_root = "./outputs"
+
+# 空字符串表示自动使用“时间戳_配置哈希前缀”生成运行名。
+run_name = ""
+
+# generated 表示随机生成地图；external 表示读取 external_map_path。
+map_source = "generated"
+
+# 外部地图路径；仅 map_source="external" 时使用。
+external_map_path = ""
+
+# 输出目录已存在时拒绝覆盖，保护以前的实验结果。
+overwrite_policy = "reject"
+
+# 计算阶段失败时停止依赖它的后续阶段，并保留已完成数据。
+stage_failure_policy = "stop_and_preserve"
+
+# 图片失败不撤销算法结果，继续运行并标记图片输出不完整。
+visualization_failure_policy = "continue_and_mark_partial"
+
+# 每个阶段成功后立即保存检查点和运行清单。
+checkpoint_after_each_stage = true
+
+
+[random]
+# 唯一工程随机根种子；更改后会改变地图、OD、候选和随机调度轨迹。
+root_seed = 2048
+
+# 使用稳定 BLAKE2b-64 从根种子、模块名、OD、尝试号或轮次派生子种子。
+seed_derivation = "blake2b_64"
+
+# 并行结果按稳定任务编号提交，不能按线程完成先后提交。
+parallel_commit_order = "stable_task_index"
+
+
+[runtime]
+# 每个并行工作单元内部只使用一个线程，避免 OpenMP/BLAS 二次扩张。
+threads_per_worker = 1
+
+# 整次运行紧急时间上限，单位秒；14400 秒等于 4 小时。
+# 正常可复现停止仍使用节点数、迭代数和轮数，此值只防止异常长时间运行。
+global_wall_time_limit_seconds = 14_400
+
+# 达到整次运行时间上限时保存已有结果并返回预算耗尽。
+global_timeout_policy = "stop_and_preserve"
+
+
+[external_map]
+# auto 根据扩展名读取 PNG、NPY 或 NPZ。
+format = "auto"
+
+# 外部二值数组中 1 表示原始物理障碍。
+obstacle_value = 1
+
+# 外部二值数组中 0 表示自由栅格。
+free_value = 0
+
+# 外部地图尺寸必须严格等于研究超参数 eta1×eta1。
+require_configured_size = true
+
+# 禁止静默缩放外部地图，因为缩放会改变障碍和碰撞几何。
+allow_resize = false
+
+# PNG 第一行按图像顶部读取，再翻转成算法统一的 y 向上坐标。
+png_origin = "upper_then_flip_to_lower"
+
+# PNG 灰度归一化后，大于等于 0.5 的像素解释为障碍。
+png_obstacle_threshold = 0.5
+
+# NPZ 文件读取名为 map 的二维数组。
+npz_array_key = "map"
+
+# 阈值化后只允许 0/1 二值语义，不接受多类别障碍编码。
+require_binary_values = true
+
+
+[numeric]
+# 通用几何与浮点比较绝对容差。
+epsilon = 1.0e-9
+
+# 运动基元连续位移分量接近 0 时直接量化为 0 的容差。
+quantization_epsilon = 1.0e-12
+
+# 判断控制点是否构成真实转弯的角度阈值，单位弧度。
+turn_detection_angle_epsilon_rad = 1.0e-6
+
+# 局部指标增量与全局重算比较时允许的绝对误差。
+metric_delta_absolute_tolerance = 1.0e-6
+
+# 局部指标增量与全局重算比较时允许的相对误差。
+metric_delta_relative_tolerance = 1.0e-9
+
+
+[objective]
+# J_true 完全相同时依次比较重叠、长度、障碍代价、排斥和坐标序列。
+best_tie_break_order = ["A", "L", "D", "R", "coordinate_sequence"]
+
+
+[metric_semantics]
+# D 按路径中心线的有序栅格经过记录累计。
+obstacle_cost_sampling = "ordered_centerline_grid_visits"
+
+# 同一路径重复经过同一栅格时，每次经过都累计障碍权重。
+obstacle_repeat_visits = true
+
+# 障碍渐变距离从原始物理障碍计算，而不是从硬膨胀图计算。
+obstacle_distance_source = "raw_obstacle_mask"
+
+# 障碍渐变采用 Chebyshev 距离。
+obstacle_distance_metric = "chebyshev"
+
+# 障碍外有效层使用第一层归一到 0.9 的 Raised Cosine。
+obstacle_gradient_profile = "normalized_raised_cosine"
+
+# 第一层自由栅格软代价值固定为 0.9，原始障碍保持为 1。
+obstacle_first_free_layer_value = 0.9
+
+# 多障碍渐变重叠时取最大值，等价于使用最近障碍距离。
+obstacle_overlap_rule = "max_via_nearest_distance"
+
+# R 的单点候选只处理局部改变线段和其有限作用域。
+repulsion_evaluation_scope = "local_changed_segments_and_support"
+
+# 局部脏区域半径由 max(beta1,beta2,beta3/2) 派生。
+local_dirty_region_radius = "derived_max_beta1_beta2_beta3_over_2"
+
+# 被评价路径不对自身产生排斥。
+repulsion_exclude_optimized_path = true
+
+# 排斥距离为栅格中心到控制折线的最短欧氏距离。
+repulsion_distance_metric = "euclidean_to_control_polyline"
+
+# 同一路径多线段取最大场值，等价于使用到整条折线的最短距离。
+repulsion_same_path_merge = "max_via_min_distance"
+
+# 有效半径内使用 0.5*(1+cos(pi*d/(beta2+1)))，半径外为 0。
+repulsion_profile = "raised_cosine_beta2_plus_1"
+
+# 不同来源路径在同一栅格的排斥贡献线性相加。
+repulsion_source_accumulation = "sum_per_grid_cell"
+
+# R 对目标路径中心线的有序栅格经过记录采样。
+repulsion_target_sampling = "ordered_centerline_grid_visits"
+
+# 目标路径重复经过同一栅格时重复累计排斥代价。
+repulsion_repeat_visits = true
+
+# 已处在来源道路掩码内的样本交给重叠 A，不再重复计入非重叠排斥 R。
+repulsion_overlap_handling = "exclude_source_road_mask_cells"
+
+# 全局 R 对每条目标路径执行有向累计。
+repulsion_full_metric = "directed_sum_over_target_paths"
+
+# 局部 Delta R 同时计算移动路径采样变化和其场对其他路径的反向影响。
+repulsion_delta_terms = "direct_and_reciprocal_local"
+
+
+[map]
+# 机器人硬碰撞半径，单位栅格；1.0 在原始障碍外形成基本安全边界。
+robot_radius = 1.0
+
+# 硬障碍膨胀使用欧氏圆盘。
+hard_inflation_metric = "euclidean_disk"
+
+
+[map_generation]
+# 目标障碍总面积允许上下各 1% 相对误差。
+total_area_relative_tolerance = 0.01
+
+# 障碍数量取最接近 A0/((eta3+eta4)/2) 的可行整数；当前约为 57。
+obstacle_count_policy = "closest_to_midpoint_area"
+
+# 总目标面积取 eta2*eta1^2 的最近整数。
+target_area_policy = "nearest_integer"
+
+# 每次从剩余面积的可行整数区间均匀采样当前障碍目标面积。
+area_allocation_sampling = "uniform_integer_feasible_interval"
+
+# 障碍形状使用低频随机径向函数。
+shape_model = "low_frequency_radial"
+
+# 最低径向谐波阶数为 2，排除整体尺度和中心偏移项。
+radial_harmonic_min = 2
+
+# 最高径向谐波阶数为 5，避免生成过细碎边界。
+radial_harmonic_max = 5
+
+# 每个谐波系数绝对值不超过 0.06。
+radial_coefficient_abs_max = 0.06
+
+# 谐波系数在 [-0.06,0.06] 上均匀采样。
+radial_coefficient_distribution = "uniform_symmetric"
+
+# 每个谐波相位在 [0,2*pi) 上独立均匀采样。
+radial_phase_distribution = "uniform_0_2pi"
+
+# 每圈使用 256 个角度样本生成连续边界。
+radial_angular_samples = 256
+
+# 尺度二分最多执行 32 次以匹配目标栅格面积。
+shape_scale_binary_search_iterations = 32
+
+# 单障碍栅格化面积相对目标误差上限为 1%。
+shape_area_relative_tolerance = 0.01
+
+# 紧致度 4*pi*A/P^2 不低于 0.55。
+compactness_min = 0.55
+
+# 障碍包围盒长边/短边不超过 1.5。
+aspect_ratio_max = 1.5
+
+# 实际周长/凸包周长不超过 1.25。
+boundary_roughness_max = 1.25
+
+# 面积、周长和凸包从闭栅格区域几何计算。
+shape_measurement_geometry = "closed_cell_union_boundary"
+
+# 每个障碍必须保持 4 连通。
+require_four_connected = true
+
+# 不允许障碍内部形成自由孔洞。
+allow_holes = false
+
+# 不同原始障碍闭区域至少相距 3 个栅格单位。
+obstacle_min_separation = 3.0
+
+# 障碍分离距离按两个闭栅格区域的最短欧氏距离计算。
+obstacle_separation_metric = "euclidean_between_closed_cell_unions"
+
+# 原始障碍与地图几何边界至少保留 1 个栅格距离。
+obstacle_boundary_margin = 1.0
+
+# 障碍中心在满足边界条件的整数位置中均匀采样。
+placement_sampling = "uniform_integer_shape_center"
+
+# 单个障碍最多尝试生成 80 次形状。
+max_shape_trials_per_obstacle = 50
+
+# 一个已生成形状最多尝试 300 个位置。
+max_placement_trials_per_obstacle = 100
+
+# 位置预算耗尽时重新生成当前障碍形状。
+placement_failure_action = "regenerate_current_obstacle"
+
+# 同一障碍最多重新生成 20 个可接受形状，之后重启整张地图。
+max_shape_regenerations_per_obstacle = 20
+
+# 整张地图最多重新开始 10 次。
+max_map_restarts = 10
+
+
+[motion_primitives]
+# 名义长度按 1 栅格步长枚举派生 beta10 到 beta14 的全部整数长度。
+nominal_length_step = 1.0
+
+# 实际航向覆盖不足时最多把名义航向数量加倍 4 次。
+heading_refinement_max = 4
+
+# 相同整数位移只保留一条运动基元。
+deduplicate_by_displacement = true
+
+# 基元终点采用对位移绝对值向外取整再恢复符号的规则。
+endpoint_rounding_mode = "signed_outward_ceil"
+
+# 稠密中心线栅格使用确定性 Bresenham 顺序生成。
+dense_line_algorithm = "deterministic_bresenham"
+
+# 碰撞覆盖包含闭线段接触的全部栅格，包括仅接触边或角点。
+collision_cover_algorithm = "closed_segment_supercover"
+
+
+[astar]
+# 启发式为当前端点到目标的欧氏距离。
+heuristic = "euclidean_distance"
+
+# 基准搜索启发式权重必须为 1，以保持未截断时的最短性。
+baseline_heuristic_weight = 1.0
+
+# 更小 g 值可以重新打开已经处理过的状态。
+allow_state_reopen = true
+
+# 单次基准 A* 最多扩展 1,500,000 个状态。
+# 一个状态是 (x,y,到达航向)；达到上限表示预算耗尽，不等于无路径。
+baseline_max_expanded_states = 1_500_000
+
+# 单次候选 A* 最多扩展 750,000 个状态；候选失败不会删除已有基准路径。
+candidate_max_expanded_states = 750_000
+
+# 0 表示不设置单次搜索墙钟截止，避免硬件速度改变搜索结果。
+per_search_wall_time_limit_seconds = 0
+
+# OPEN 完全同分时依次比较 h、g 和稳定状态 ID。
+open_tie_break_order = ["h", "g", "stable_state_id"]
+
+# 目标只能由合法运动基元端点精确到达，不使用吸附或短连接。
+goal_connection_policy = "exact_primitive_endpoint"
+
+
+[od]
+# 起点 x 最大为地图宽度的 30%；左边界由 od_clearance 决定。
+origin_x_max_fraction = 0.30
+
+# 终点 x 最小为地图宽度的 70%；右边界由 od_clearance 决定。
+destination_x_min_fraction = 0.70
+
+# OD 点到地图边界和硬障碍的距离必须严格大于 10。
+od_clearance = 10.0
+
+# 在合法整数栅格中心上均匀采样 OD 点。
+point_sampling = "uniform_integer_grid_center"
+
+# 不允许不同 OD 复用起点或终点坐标。
+allow_duplicate_od_points = false
+
+# 要求起点 x 坐标小于终点 x 坐标。
+require_origin_left_of_destination = true
+
+# 每批提案数量使用研究超参数 eta10。
+proposal_batch_size_policy = "runtime_eta10"
+
+# 并行基准 A* 结果按 proposal_index 从小到大接纳。
+acceptance_order = "proposal_index"
+
+# 最多执行 30 批 OD 提案；当前 eta10=6 时最多验证 180 个提案。
+max_od_batches = 10
+
+# 达到批次预算仍不足 eta6 时停止当前运行，不自动更换地图或种子。
+budget_exhaustion_policy = "fail_current_run"
+
+
+[candidates]
+# eta8：同一 OD 新候选相对已有候选的最小归一化面积差异。
+eta8 = 0.01
+
+# 新候选物理长度不得超过基准最短长度的 1.20 倍。
+max_length_ratio_to_baseline = 1.20
+
+# 连续 5 次候选尝试失败后停止当前 OD 的候选生成。
+consecutive_failure_limit = 5
+
+# 每个 OD 最多执行 50 次候选搜索，防止成功和失败交替导致无上限运行。
+max_attempts_per_od = 50
+
+# 候选 A* 启发式权重下限。
+heuristic_weight_min = 1.00
+
+# 候选 A* 启发式权重上限。
+heuristic_weight_max = 1.15
+
+# 每次尝试在上述闭区间均匀采样启发式权重。
+heuristic_weight_sampling = "uniform"
+
+# 同一尝试中同一状态的随机偏置由稳定哈希固定生成。
+state_bias_model = "stable_hash_uniform_symmetric"
+
+# 状态偏置哈希使用 BLAKE2b-64，不使用语言运行时随机哈希。
+state_bias_hash = "blake2b_64"
+
+# 状态偏置范围为 [-3,3]，约为当前派生 beta10=6 的一半。
+state_bias_amplitude = 3.0
+
+# 候选生成按 OD 并行，最大并行数使用 eta10。
+parallelism_policy = "runtime_eta10"
+
+# 重复路径先比较稳定几何哈希，哈希相等后比较完整坐标。
+duplicate_detection = "hash_then_exact_coordinates"
+
+# 路径差异使用闭合折线的绝对绕数栅格面积。
+area_distance_method = "closed_walk_absolute_winding_grid_area"
+
+
+[road_masks]
+# 道路掩码使用栅格中心到中心折线的最短欧氏距离。
+distance_metric = "euclidean_to_polyline"
+
+# 道路半径固定由研究超参数 beta3/2 派生。
+radius_source = "beta3_over_2"
+
+# 道路掩码位集采用行主序 bit_index=y*eta1+x。
+storage = "row_major_bitset"
+
+# 网络重叠使用每格 choose(occupancy_count,2) 计数。
+overlap_count_rule = "pair_count_choose_n_2"
+
+
+[combination_search]
+# 初始组合固定选择所有 OD 的第 1 条基准路径。
+initial_solution = "all_baseline_candidates"
+
+# 每步枚举全部单 OD 候选替换。
+neighborhood = "exhaustive_single_od_replacement"
+
+# 组合目标同分时比较重叠、长度、障碍代价和候选编号向量。
+objective_tie_break_order = ["overlap", "total_length", "total_obstacle_cost", "candidate_index_vector"]
+
+# 组合搜索最多执行 5000 次迭代。
+max_iterations = 5000
+
+# 连续 500 次迭代未改善全局 best 时提前停止。
+stall_iterations = 500
+
+# 初始 Reactive Tabu tenure。
+tabu_tenure_initial = 7
+
+# 组合 Tabu tenure 下限。
+tabu_tenure_min = 5
+
+# 组合 Tabu tenure 上限。
+tabu_tenure_max = 20
+
+# 在最近 50 个组合状态中检测重复和短周期循环。
+cycle_detection_window = 50
+
+# 检测到循环时 tenure 增加 2。
+tabu_increase_on_cycle = 2
+
+# 连续 50 次迭代没有循环后降低 tenure。
+no_cycle_iterations_before_decrease = 50
+
+# 满足无循环条件时 tenure 减少 1。
+tabu_decrease_without_cycle = 1
+
+# Tabu 移动若严格改善全局 best，则按 aspiration 放行。
+aspiration = "strict_global_best_improvement"
+
+# 移动目标完全相同时按 OD 编号和新候选编号选择。
+equal_move_tie_break = "od_id_then_candidate_id"
+
+
+[sparsification]
+# 初始控制点包含起点、全部运动基元终点和终点。
+initial_points = "all_primitive_endpoints"
+
+# 安全删点优先级中归一化几何误差的权重。
+deletion_distance_error_weight = 1.0
+
+# 安全删点优先级中归一化转角影响的权重。
+deletion_heading_error_weight = 1.0
+
+# 删除优先级相同时按稠密来源索引从小到大处理。
+equal_deletion_priority_tie_break = "source_dense_index"
+
+# 重叠组件使用 8 连通，与连续优化冲突组件一致。
+overlap_component_connectivity = 8
+
+# 每条路径的连续重叠弧长区间插入区间边界支撑点。
+overlap_support_include_interval_boundaries = true
+
+# 相邻重叠支撑点最大沿路径间距使用派生 beta11。
+overlap_support_max_spacing_source = "beta11"
+
+# 支撑点插在当前控制折线上，不改变路径几何。
+overlap_support_placement = "on_current_control_polyline"
+
+# 支撑点与已有点距离不超过 numeric.epsilon 时复用已有点。
+support_point_merge_tolerance_source = "numeric_epsilon"
+
+# 超过 beta12 的控制段采用均匀共线细分补点。
+max_spacing_insertion = "uniform_collinear_subdivision"
+
+
+[control_point_search]
+# 候选坐标步长为 1 个栅格，与地图分辨率一致。
+candidate_resolution = 1.0
+
+# 五点最高优先块最多完整重试 2 次，随后恢复未确认合法的移动。
+max_local_priority_retries = 2
+
+# Effect Score 在该相对容差内视为同分。
+effect_score_tie_relative_tolerance = 1.0e-12
+
+# 多个最高优先块同级时从各块队首均匀随机选择一个块。
+priority_block_tie_break = "uniform_random_block_head"
+
+# 候选位置按移动距离平方、方向角、u、v 稳定排序。
+candidate_position_order = "radius2_angle_u_v"
+
+
+[control_tabu]
+# 每个控制点初始位置 Tabu tenure。
+tenure_initial = 5
+
+# 位置键按 candidate_resolution 量化连续坐标。
+position_key_resolution_source = "control_candidate_resolution"
+
+# 控制点 Tabu tenure 下限。
+tenure_min = 3
+
+# 控制点 Tabu tenure 上限。
+tenure_max = 12
+
+# 在最近 8 个位置键中检测往返和短周期循环。
+cycle_detection_window = 8
+
+# 检测到循环时 tenure 增加 1。
+tenure_increase_on_cycle = 1
+
+# 连续 10 次访问无循环后降低 tenure。
+visits_without_cycle_before_decrease = 10
+
+# 满足无循环条件时 tenure 减少 1。
+tenure_decrease_without_cycle = 1
+
+# 只有形成新的严格合法全局 best 时才允许 Tabu aspiration。
+aspiration = "strict_legal_global_best_improvement"
+
+# 局部事务失败记录不创建禁止未来重试的 Tabu 属性。
+failed_adjustment_creates_tabu = false
+
+
+[adaptive_threshold]
+# 未归一化目标先除以本轮可移动点数量，形成每点参考尺度。
+reference_scale = "round_start_objective_per_movable_point"
+
+# 初始阈值比例为 0，新点先只接受改善或不恶化移动。
+initial_ratio = 0.0
+
+# 每次该点未改善时阈值比例增加 0.005。
+growth_ratio_per_stagnant_visit = 0.005
+
+# 阈值比例上限为每点参考尺度的 5%。
+max_ratio = 0.05
+
+# 发生改善后把当前阈值乘 0.5。
+decay_factor_on_improvement = 0.5
+
+
+[conflicts_and_breakout]
+# 冲突栅格使用 8 连通划分组件。
+component_connectivity = 8
+
+# 新旧冲突组件 IoU 至少 0.30 才继承同一冲突身份和 Age。
+match_iou_threshold = 0.30
+
+# 新冲突组件 Age 从 0 开始。
+new_component_age = 0
+
+# 持续冲突组件每个完整优化轮最多增加 1 Age。
+age_increment_per_round = 1
+
+# gamma：长期冲突最大附加压力；1.0 表示最大权重为基础的 2 倍。
+gamma = 1.0
+
+# Age 达到 5 轮后附加压力饱和。
+age_saturation_rounds = 5
+
+# 年龄权重为 1+gamma*min(age/age_saturation_rounds,1)。
+age_weight_rule = "capped_linear"
+
+# Breakout 只改变搜索重叠压力，不改变最终 J_true。
+apply_breakout_to = "search_overlap_term_only"
+
+
+[optimization]
+# K：连续控制点优化最多 30 轮，包含 15 个严格轮和 15 个随机轮。
+K = 60
+
+# 连续 5 个合法轮末无有效改善时提前停止。
+stall_rounds = 5
+
+# J_true 相对下降至少 1e-4 才计为有效改善。
+minimum_relative_improvement = 1.0e-4
+
+# best-so-far 只在初始合法状态和完整合法轮末更新。
+best_update_points = "initial_and_validated_round_end"
+
+# 本轮新插入点从下一轮开始进入普通调度。
+new_points_join_schedule = "next_round"
+
+
+[validation]
+# 一键运行开始前检查参数存在性、范围和跨字段关系。
+validate_config_before_run = true
+
+# 只执行阶段文档规定的基本功能检查。
+check_level = "functional"
+
+# 最终指标必须从最终几何全局重算。
+recompute_final_metrics_from_geometry = true
+
+# 最终 A 同时用路径对交集和 choose(n,2) 两种方式核对。
+verify_overlap_by_two_methods = true
+
+# 随机抽查 1% 已评价移动，比较局部指标增量与全局差分。
+metric_delta_spot_check_probability = 0.01
+
+
+[output]
+# JSON 浮点输出保留 10 位有效小数。
+float_precision_digits = 10
+
+# 大型地图数组使用压缩 NPZ 保存。
+array_format = "npz_compressed"
+
+# 结构化记录和最终结果使用 JSON。
+record_format = "json"
+
+# 尝试和移动轨迹使用可流式追加的 JSON Lines。
+trace_format = "jsonl"
+
+# 保存研究超参数和工程参数原始文件副本。
+save_input_config = true
+
+# 保存合并、派生和标准化后的完整配置。
+save_normalized_config = true
+
+# 保存地图掩码、距离场和代价场数组。
+save_map_arrays = true
+
+# 保存 OD 端点、基准路径和基准长度。
+save_od_records = true
+
+# 保存冻结候选集合和停止原因。
+save_candidate_sets = true
+
+# 保存组合搜索选择结果。
+save_combination_result = true
+
+# 保存连续优化前的稀疏控制路径。
+save_sparse_control_paths = true
+
+# 保存最终合法控制路径。
+save_final_control_paths = true
+
+# 保存最终 L、D、A、R 和 J_true。
+save_final_metrics = true
+
+# 保存候选生成尝试轨迹。
+save_candidate_trace = true
+
+# 保存组合搜索迭代轨迹。
+save_combination_trace = true
+
+# 保存控制点调度、移动和局部事务轨迹。
+save_control_optimization_trace = true
+
+# 保存阶段耗时和峰值资源摘要。
+save_runtime_profile = true
+
+# 文件先写临时文件，成功后原子替换正式文件。
+atomic_file_writes = true
+
+
+[logging]
+# INFO 记录阶段和预算摘要，不记录每个 A* 节点。
+level = "INFO"
+
+# 日志同时写入运行目录文件和控制台。
+destinations = ["file", "console"]
+
+# 日志文件编码使用 UTF-8。
+encoding = "utf-8"
+
+# JSONL 轨迹每累计 100 条记录刷新一次。
+trace_flush_interval_records = 100
+
+
+[visualization]
+# 启用四张规定的 PNG 图片输出。
+enabled = true
+
+# 使用无界面的离屏绘图后端。
+backend = "headless"
+
+# 图片格式固定为 PNG。
+image_format = "png"
+
+# 不调用 show，不弹出图形窗口。
+call_show = false
+
+# 每张图保存后立即关闭图像对象。
+close_figure_after_save = true
+
+# 图片宽度为 10 英寸。
+figure_width_inches = 10.0
+
+# 图片高度为 10 英寸，保持正方形。
+figure_height_inches = 10.0
+
+# 每英寸 150 像素，得到约 1500×1500 像素图片。
+dpi = 150
+
+# 使用 y 向上的几何坐标方向。
+coordinate_origin = "lower"
+
+# 横纵坐标显示比例相等。
+axis_aspect = "equal"
+
+# 10 个 OD 使用 tab20 离散色板并按 od_id 固定颜色。
+od_colormap = "tab20"
+
+# 起点使用圆形标记。
+origin_marker = "o"
+
+# 终点使用叉号标记。
+destination_marker = "x"
+
+# 真实转弯点使用空心圆标记。
+true_turn_marker = "o"
+
+# 路径中心线宽度。
+path_line_width = 1.5
+
+# 普通控制点标记尺寸。
+control_point_marker_size = 3.0
+
+# 起终点标记尺寸。
+endpoint_marker_size = 7.0
+
+# OD 标签字体大小。
+od_label_font_size = 8.0
+
+# 绘制原始物理障碍。
+show_raw_obstacles = true
+
+# 绘制机器人半径造成的额外硬膨胀区。
+show_hard_inflation = true
+
+# 默认不显示软障碍场，避免遮挡路径。
+show_soft_obstacle_field = false
+
+# 启用软障碍场时的透明度。
+soft_obstacle_alpha = 0.20
+
+# 基准网络图默认只画路径中心线，不画完整道路宽度。
+baseline_show_road_width = false
+
+# 组合优化网络图显示重叠区域。
+combination_show_overlap = true
+
+# 最终控制点网络图显示重叠区域。
+final_show_overlap = true
+
+# 重叠区域透明度。
+overlap_alpha = 0.30
+
+# 最终图显示全部控制点。
+final_show_control_points = true
+
+# 最终图突出真实转弯控制点。
+final_highlight_true_turns = true
+
+# 阶段 4 后保存的地图与 OD 点图片。
+map_and_od_filename = "figures/01_map_and_od.png"
+
+# 阶段 4 后保存的基准路径网络图片。
+baseline_network_filename = "figures/02_baseline_path_network.png"
+
+# 阶段 7 后保存的组合优化网络图片。
+combination_network_filename = "figures/03_combination_optimized_network.png"
+
+# 阶段 9 后保存的控制点优化网络图片。
+control_optimized_network_filename = "figures/04_control_point_optimized_network.png"

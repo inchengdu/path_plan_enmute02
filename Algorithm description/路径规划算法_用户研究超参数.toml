@@ -41,13 +41,13 @@ alpha4 = 1.0
 
 [spatial_costs]
 # beta1：障碍物向自由空间扩展的有效渐变层数，必须为正整数。
-beta1 = 3
+beta1 = 5
 
 # beta2：路径中心线排斥作用半径，单位为栅格。
-beta2 = 3.0
+beta2 = 5.0
 
 # beta3：道路完整宽度；道路掩码半径固定为 beta3/2。
-beta3 = 5.0
+beta3 = 10.0
 
 
 [turning_and_spacing]
@@ -67,7 +67,7 @@ beta12 = 30.0
 beta13 = 2.0
 
 # beta14：运动基元最大物理长度；必须满足 beta10 < beta14 < beta12。
-beta14 = 15.0
+beta14 = 20.0
 
 
 [map]
@@ -107,7 +107,7 @@ eta10 = 6
 beta4 = 5
 
 # beta6：Effect Score 沿路径的传播范围，单位为沿路径距离。
-beta6 = 25.0
+beta6 =50.0
 
 # 局部视野固定包含前二点、当前点、后二点，边界处截断。
 local_window_radius = 2
