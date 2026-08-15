@@ -1,0 +1,48 @@
+{
+  "run_id": "run_ba69071e",
+  "config_hash": "ba69071e0201d8fa",
+  "root_seed": 2048,
+  "schema_version": "1.0",
+  "beta_theta_deg": 10.0,
+  "beta_theta_rad": 0.17453292519943295,
+  "beta10": 6,
+  "beta11": 6,
+  "stage1_status": "SUCCESS",
+  "stage1_time": 0.0021071434020996094,
+  "status": "INTERNAL_ERROR",
+  "completed_stages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "stage2_time": 37.610002517700195,
+  "stage3_time": 0.07585000991821289,
+  "stage4_time": 1106.3606650829315,
+  "stage5_time": 85.15815544128418,
+  "stage6_time": 483.63180780410767,
+  "stage7_time": 7.646409511566162,
+  "stage8_time": 0.592226505279541,
+  "stage9_time": 8082.515152454376,
+  "stage10_time": 2.395989179611206,
+  "total_time": 9856.391728639603,
+  "figure_paths": {
+    "01_map_and_od": "./outputs/run_1786761138/figures/01_map_and_od.png",
+    "02_baseline": "./outputs/run_1786761138/figures/02_baseline_path_network.png",
+    "03_combination": "./outputs/run_1786761138/figures/03_combination_optimized_network.png",
+    "04_control_optimized": "./outputs/run_1786761138/figures/04_control_point_optimized_network.png"
+  },
+  "final_metrics": {
+    "L": 9367.460254306465,
+    "D": 148.43025293201208,
+    "A": 1942.0,
+    "R": 0.0,
+    "J_true": 28593.35076154494
+  }
+}

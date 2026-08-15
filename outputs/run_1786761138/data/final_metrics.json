@@ -1,0 +1,136 @@
+{
+  "status": "INTERNAL_ERROR",
+  "metrics": {
+    "L": 9367.460254306465,
+    "D": 148.43025293201208,
+    "A": 1942.0,
+    "R": 0.0,
+    "J_true": 28593.35076154494
+  },
+  "validation": {
+    "path_validation": {
+      "total_paths": 12,
+      "passed": 7,
+      "failed": 5,
+      "checks": [
+        {
+          "path_id": 0,
+          "od_id": 0,
+          "n_points": 33,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 1,
+          "od_id": 1,
+          "n_points": 47,
+          "errors": [
+            "Turn 17.50deg > beta_theta 10.00deg at point 15",
+            "Turn 16.31deg > beta_theta 10.00deg at point 18",
+            "Turn 17.10deg > beta_theta 10.00deg at point 19",
+            "Turn 21.37deg > beta_theta 10.00deg at point 20",
+            "Turn 21.89deg > beta_theta 10.00deg at point 21"
+          ],
+          "passed": false
+        },
+        {
+          "path_id": 2,
+          "od_id": 2,
+          "n_points": 34,
+          "errors": [
+            "Turn 24.70deg > beta_theta 10.00deg at point 14",
+            "Turn 20.11deg > beta_theta 10.00deg at point 15",
+            "Turn 18.43deg > beta_theta 10.00deg at point 16"
+          ],
+          "passed": false
+        },
+        {
+          "path_id": 3,
+          "od_id": 3,
+          "n_points": 37,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 4,
+          "od_id": 4,
+          "n_points": 37,
+          "errors": [
+            "Turn 20.74deg > beta_theta 10.00deg at point 13",
+            "Turn 19.17deg > beta_theta 10.00deg at point 15",
+            "Turn 15.35deg > beta_theta 10.00deg at point 16",
+            "Turn 22.81deg > beta_theta 10.00deg at point 17",
+            "Turn 12.99deg > beta_theta 10.00deg at point 18"
+          ],
+          "passed": false
+        },
+        {
+          "path_id": 5,
+          "od_id": 5,
+          "n_points": 38,
+          "errors": [
+            "Turn 22.38deg > beta_theta 10.00deg at point 14",
+            "Turn 24.83deg > beta_theta 10.00deg at point 15",
+            "Turn 24.62deg > beta_theta 10.00deg at point 27"
+          ],
+          "passed": false
+        },
+        {
+          "path_id": 6,
+          "od_id": 6,
+          "n_points": 38,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 7,
+          "od_id": 7,
+          "n_points": 26,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 8,
+          "od_id": 8,
+          "n_points": 35,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 9,
+          "od_id": 9,
+          "n_points": 33,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 10,
+          "od_id": 10,
+          "n_points": 30,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 11,
+          "od_id": 11,
+          "n_points": 39,
+          "errors": [
+            "Turn 15.43deg > beta_theta 10.00deg at point 37"
+          ],
+          "passed": false
+        }
+      ]
+    },
+    "overlap_consistency": {
+      "A_pair": 1942.0,
+      "A_count": 1942.0,
+      "difference": 0.0,
+      "consistent": true
+    },
+    "all_checks_passed": false,
+    "n_ods": 12,
+    "n_control_points": 427
+  },
+  "n_paths": 12,
+  "n_conflict_components": 18
+}

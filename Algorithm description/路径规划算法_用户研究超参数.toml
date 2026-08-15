@@ -27,13 +27,13 @@ area_unit = "grid_cell_squared"
 normalize_components = false
 
 # alpha1：路径长度 L 的权重；增大后更倾向于缩短路径。
-alpha1 = 1.0
+alpha1 = 2
 
 # alpha2：障碍软代价 D 的权重；增大后更倾向于远离障碍渐变区域。
 alpha2 = 1.0
 
 # alpha3：道路重叠面积 A 的权重；增大后更积极分离重叠路径。
-alpha3 = 3.0
+alpha3 = 5.0
 
 # alpha4：非重叠近距离排斥 R 的权重；增大后路径间距通常变大。
 alpha4 = 1.0
