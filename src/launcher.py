@@ -286,9 +286,11 @@ def run_pipeline(
         run_manifest["stage6_time"] = elapsed
         run_manifest["completed_stages"] = [1, 2, 3, 4, 5, 6]
         save_json({
-            "overlap_matrix_shape": list(precompute.overlap_Q.shape),
-            "overlap_min": float(np.min(precompute.overlap_Q)),
-            "overlap_max": float(np.max(precompute.overlap_Q)),
+            "per_od_candidate_counts": [len(od_masks) for od_masks in precompute.road_masks],
+            "coverage_cells_min": float(min(
+                int(np.sum(m)) for od_masks in precompute.road_masks for m in od_masks)),
+            "coverage_cells_max": float(max(
+                int(np.sum(m)) for od_masks in precompute.road_masks for m in od_masks)),
         }, os.path.join(output_dir, "data", "overlap_summary.json"))
         completed_stages.append(6)
     except Exception as e:

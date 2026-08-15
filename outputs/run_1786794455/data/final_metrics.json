@@ -1,0 +1,118 @@
+{
+  "status": "INTERNAL_ERROR",
+  "metrics": {
+    "L": 9320.115446688827,
+    "D": 142.0221929550171,
+    "A": 2648.0,
+    "R": 0.0,
+    "J_true": 32022.253086332672
+  },
+  "validation": {
+    "path_validation": {
+      "total_paths": 12,
+      "passed": 11,
+      "failed": 1,
+      "checks": [
+        {
+          "path_id": 0,
+          "od_id": 0,
+          "n_points": 27,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 1,
+          "od_id": 1,
+          "n_points": 33,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 2,
+          "od_id": 2,
+          "n_points": 35,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 3,
+          "od_id": 3,
+          "n_points": 30,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 4,
+          "od_id": 4,
+          "n_points": 37,
+          "errors": [
+            "Turn 23.91deg > beta_theta 10.00deg at point 17",
+            "Turn 12.72deg > beta_theta 10.00deg at point 18",
+            "Turn 10.71deg > beta_theta 10.00deg at point 19"
+          ],
+          "passed": false
+        },
+        {
+          "path_id": 5,
+          "od_id": 5,
+          "n_points": 26,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 6,
+          "od_id": 6,
+          "n_points": 30,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 7,
+          "od_id": 7,
+          "n_points": 26,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 8,
+          "od_id": 8,
+          "n_points": 29,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 9,
+          "od_id": 9,
+          "n_points": 27,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 10,
+          "od_id": 10,
+          "n_points": 24,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "path_id": 11,
+          "od_id": 11,
+          "n_points": 44,
+          "errors": [],
+          "passed": true
+        }
+      ]
+    },
+    "overlap_consistency": {
+      "A_pair": 2648.0,
+      "A_count": 2648.0,
+      "difference": 0.0,
+      "consistent": true
+    },
+    "all_checks_passed": false,
+    "n_ods": 12,
+    "n_control_points": 368
+  },
+  "n_paths": 12,
+  "n_conflict_components": 18
+}

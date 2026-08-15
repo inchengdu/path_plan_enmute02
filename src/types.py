@@ -290,8 +290,8 @@ class FrozenCandidateSets:
 
 @dataclasses.dataclass
 class CandidatePrecompute:
-    road_masks: List[List[np.ndarray]]  # [od_idx][candidate_idx] -> bitset (1D bool array)
-    overlap_Q: np.ndarray  # symmetric matrix, shape (total_candidates, total_candidates)
+    road_masks: List[List[np.ndarray]]  # [od_idx][candidate_idx] -> flat bool road mask (map_size^2,)
+    nonzero_indices: List[List[np.ndarray]]  # [od_idx][candidate_idx] -> flat indices of mask cells
     physical_lengths: List[List[float]]  # [od_idx][candidate_idx]
     optional_soft_costs: Optional[List[List[float]]] = None
 

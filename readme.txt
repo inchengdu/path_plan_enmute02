@@ -1,0 +1,2 @@
+分支 ：change_basice_path_object_number
+原始的稠密路径优化目标是，路径的重叠面积。在组合优化阶段，更改为重叠数量。
